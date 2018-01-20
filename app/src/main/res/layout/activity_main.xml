@@ -11,6 +11,7 @@
         android:id="@+id/displayer"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:scaleType="fitXY"
         app:srcCompat="@drawable/ic_launcher_foreground"
         tools:layout_editor_absoluteX="99dp"
         tools:layout_editor_absoluteY="3dp" />
