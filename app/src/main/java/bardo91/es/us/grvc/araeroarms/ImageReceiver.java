@@ -1,15 +1,20 @@
 package bardo91.es.us.grvc.araeroarms;
 
+import android.provider.ContactsContract;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.Socket;
-import java.net.InetAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.io.BufferedWriter;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
+
+import org.opencv.core.Mat;
+import org.opencv.imgcodecs.Imgcodecs;
+import org.opencv.core.MatOfInt;
 
 class ImageReceiver{
     private Thread mReadingThread;
@@ -18,13 +23,25 @@ class ImageReceiver{
     private int mSocketPort;
 
     private boolean mListening = false;
+    private boolean mIsConnected = false;
+
+    private Mat mLastImage;
 
     public ImageReceiver(String _ip, int _port){
         mSocketIp = _ip;
         mSocketPort= _port;
     }
 
+    public boolean isConnected(){
+        return mIsConnected;
+    }
+
+    public Mat lastImage(){
+        return mLastImage;
+    }
+
     public void startListening(){
+        mLastImage  = new Mat();
         mListening = true;
         mReadingThread = new Thread(
                 new Runnable() {
@@ -35,6 +52,7 @@ class ImageReceiver{
                             // Try starting the socket
                             try {
                                 socket = new Socket(mSocketIp, mSocketPort);
+                                mIsConnected = socket.isConnected();
                             } catch (SocketException e) {
                                 e.printStackTrace();
                             } catch (UnknownHostException e) {
@@ -53,6 +71,12 @@ class ImageReceiver{
 
                                 } catch (IOException e) {
                                     e.printStackTrace();
+                                    mIsConnected = false;
+                                    try {
+                                        socket.close();
+                                    } catch (IOException e1) {
+                                        e1.printStackTrace();
+                                    }
                                 }
 
                                 // RECEIVE IMAGE
@@ -68,10 +92,7 @@ class ImageReceiver{
                                     }
 
                                     // Decode input image
-                                    //MatOfInt params = new MatOfInt(size);
-                                    //int[] data = {Highgui.IMWRITE_JPEG_QUALITY, 40};
-                                    //params.put(0, 0, data);
-                                    //Highgui.imencode(".jpg", image, buf, params);
+                                    Imgcodecs.imdecode(mLastImage,0);
                                 } catch (IOException e) {
                                     e.printStackTrace();
                                 }
