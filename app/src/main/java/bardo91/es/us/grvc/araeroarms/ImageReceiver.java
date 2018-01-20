@@ -11,10 +11,13 @@ import java.net.UnknownHostException;
 import java.io.BufferedWriter;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
+import java.nio.ByteBuffer;
 
 import org.opencv.core.Mat;
 import org.opencv.imgcodecs.Imgcodecs;
-import org.opencv.core.MatOfInt;
+import java.util.concurrent.locks.ReentrantLock;
+
+import static org.opencv.core.CvType.CV_8UC1;
 
 class ImageReceiver{
     private Thread mReadingThread;
@@ -27,6 +30,8 @@ class ImageReceiver{
 
     private Mat mLastImage;
 
+    private ReentrantLock mSecureLock = new ReentrantLock();
+
     public ImageReceiver(String _ip, int _port){
         mSocketIp = _ip;
         mSocketPort= _port;
@@ -37,7 +42,10 @@ class ImageReceiver{
     }
 
     public Mat lastImage(){
-        return mLastImage;
+        mSecureLock.lock();
+        Mat image = mLastImage.clone();
+        mSecureLock.unlock();
+        return image;
     }
 
     public void startListening(){
@@ -52,7 +60,7 @@ class ImageReceiver{
                             // Try starting the socket
                             try {
                                 socket = new Socket(mSocketIp, mSocketPort);
-                                mIsConnected = socket.isConnected();
+                                mIsConnected = true;
                             } catch (SocketException e) {
                                 e.printStackTrace();
                             } catch (UnknownHostException e) {
@@ -83,20 +91,49 @@ class ImageReceiver{
                                 ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
                                 byte[] buffer = new byte[1024];
 
-                                int bytesRead;
-                                InputStream inputStream = null;
                                 try {
-                                    inputStream = socket.getInputStream();
-                                    while ((bytesRead = inputStream.read(buffer)) != -1) {
-                                        byteArrayOutputStream.write(buffer, byteArrayOutputStream.size(), bytesRead);
+                                    InputStream inputStream = socket.getInputStream();
+
+                                    // READ SIZE OF IMAGE
+                                    int sizeImage;
+                                    int bytesRead = 0;
+                                    if((bytesRead = inputStream.read(buffer)) != -1){
+                                        //char []sizeImageStr = new char[bytesRead];
+                                        //for(int i = 0; i < bytesRead; i++){
+                                        //    sizeImageStr[i] = '0' + buffer[i];
+                                        //}
+                                        buffer[bytesRead] = '\0';
+                                        String sizeImageStr = new String(buffer, "UTF-8");
+                                        sizeImage =  Integer.parseInt(sizeImageStr.substring(0, bytesRead));
+                                    }else{
+                                        continue;
                                     }
 
-                                    // Decode input image
-                                    Imgcodecs.imdecode(mLastImage,0);
+                                    msg = "Got size, sent it now";
+                                    PrintWriter out = new PrintWriter(new BufferedWriter(new OutputStreamWriter(socket.getOutputStream())),true);
+                                    out.println(msg);
+
+                                    // READ IMAGE
+                                    int bytesRecv = 0;
+                                    int totalBytes = 0;
+                                    while (totalBytes < sizeImage && (bytesRecv = inputStream.read(buffer)) != -1) {
+                                        totalBytes += bytesRecv;
+                                        byteArrayOutputStream.write(buffer);
+                                    }
+                                    if(totalBytes > 0) {
+                                        // Decode input image
+                                        Mat encodedMat = new Mat(totalBytes, 1, CV_8UC1);
+                                        encodedMat.put(0, 0, byteArrayOutputStream.toByteArray());
+                                        Mat decodedImage = Imgcodecs.imdecode(encodedMat, 0);
+
+                                        mSecureLock.lock();
+                                        mLastImage = decodedImage.clone();
+                                        mSecureLock.unlock();
+                                    }
+
                                 } catch (IOException e) {
                                     e.printStackTrace();
                                 }
-
                             }
                         }
                     }
@@ -108,6 +145,7 @@ class ImageReceiver{
 
     public boolean stopListening(){
         mListening = false;
+        mIsConnected = false;
         while(mReadingThread.isAlive()){
             try {
                 Thread.sleep(100);

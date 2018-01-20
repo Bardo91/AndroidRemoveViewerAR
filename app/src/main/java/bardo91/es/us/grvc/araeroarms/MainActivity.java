@@ -12,13 +12,41 @@ import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
 import org.opencv.android.Utils;
 import org.opencv.core.Mat;
-import org.opencv.imgproc.Imgproc;
 
 public class MainActivity extends AppCompatActivity {
 
     ImageReceiver mReceiver;
     ImageView mDisplayer;
     private boolean mRunBoyRun = false;
+
+    Thread mDisplayThread;
+
+    private void displayThreadCallback(){
+        mRunBoyRun = true;
+        if(!mReceiver.isConnected()){
+            mReceiver.startListening();
+        }
+        while(mRunBoyRun){
+            if(mReceiver.isConnected()) {
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        Mat image = mReceiver.lastImage();
+                        if(image.width() > 0 && image.height() > 0) {
+                            Bitmap bmp = Bitmap.createBitmap(image.width(), image.height(), Bitmap.Config.RGB_565);
+                            Utils.matToBitmap(image, bmp);
+                            mDisplayer.setImageBitmap(bmp);
+                        }
+                    }
+                });
+                try {
+                    Thread.sleep(50);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
 
     private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
         @Override
@@ -27,6 +55,13 @@ public class MainActivity extends AppCompatActivity {
                 case LoaderCallbackInterface.SUCCESS:
                 {
                     Log.i("OPENCV", "OpenCV loaded successfully");
+                    mDisplayThread = new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            displayThreadCallback();
+                        }
+                    });
+                    mDisplayThread.start();
                 } break;
                 default:
                 {
@@ -41,7 +76,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
-        mReceiver = new ImageReceiver("192.168.0.164", 5005);
+        mReceiver = new ImageReceiver("192.168.0.164", 9009);
         mDisplayer = (ImageView) findViewById(R.id.displayer);
     }
 
@@ -49,6 +84,12 @@ public class MainActivity extends AppCompatActivity {
     protected void onPause() {
         super.onPause();
         mRunBoyRun = false;
+        while(mDisplayThread.isAlive()){ }
+        try {
+            mDisplayThread.join();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
         mReceiver.stopListening();
     }
 
@@ -58,25 +99,14 @@ public class MainActivity extends AppCompatActivity {
         if (OpenCVLoader.initDebug()) {
             Log.d("OPENCV", "OpenCV library found inside package. Using it!");
             mLoaderCallback.onManagerConnected(LoaderCallbackInterface.SUCCESS);
-            mRunBoyRun = true;
-            runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    while(mRunBoyRun){
-                        if(!mReceiver.isConnected()){
-                            mReceiver.startListening();
-                        }else{
-                            Mat image = mReceiver.lastImage();
-                            Bitmap bmp = Bitmap.createBitmap(image.width(), image.height(), Bitmap.Config.RGB_565);
-                            Utils.matToBitmap(image, bmp);
-                            mDisplayer.setImageBitmap(bmp);
-                        }
-                    }
-                }
-            });
         } else {
             Log.d("OPENCV", "Internal OpenCV library not found. Using OpenCV Manager for initialization");
-            OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_4_0, this, mLoaderCallback);
+            OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_0_0, this, mLoaderCallback);
+            try {
+                Thread.sleep(3000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
     }
 }
