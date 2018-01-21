@@ -15,6 +15,8 @@ import java.nio.ByteBuffer;
 
 import org.opencv.core.Mat;
 import org.opencv.imgcodecs.Imgcodecs;
+
+import java.util.Arrays;
 import java.util.concurrent.locks.ReentrantLock;
 
 import static org.opencv.core.CvType.CV_8UC1;
@@ -118,7 +120,12 @@ class ImageReceiver{
                                     int totalBytes = 0;
                                     while (totalBytes < sizeImage && (bytesRecv = inputStream.read(buffer)) != -1) {
                                         totalBytes += bytesRecv;
-                                        byteArrayOutputStream.write(buffer);
+                                        if(bytesRecv == 1024){
+                                            byteArrayOutputStream.write(buffer);
+                                        }else{
+                                            byte[] portion =  Arrays.copyOfRange(buffer, 0, bytesRecv);
+                                            byteArrayOutputStream.write(portion);
+                                        }
                                     }
                                     if(totalBytes > 0) {
                                         // Decode input image

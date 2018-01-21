@@ -76,7 +76,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
-        mReceiver = new ImageReceiver("192.168.0.164", 9009);
+        mReceiver = new ImageReceiver("192.168.1.43", 9009);
         mDisplayer = (ImageView) findViewById(R.id.displayer);
     }
 
