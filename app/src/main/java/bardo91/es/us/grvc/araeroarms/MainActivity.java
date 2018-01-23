@@ -4,8 +4,11 @@ import android.graphics.Bitmap;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
 import android.view.WindowManager;
+import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.TextView;
 
 import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.LoaderCallbackInterface;
@@ -17,7 +20,10 @@ public class MainActivity extends AppCompatActivity {
 
     ImageReceiver mReceiver;
     ImageView mDisplayer;
+    TextView mHostnameText;
+    Button mConnectButton;
     private boolean mRunBoyRun = false;
+    private boolean mTryingConnect = false;
 
     Thread mDisplayThread;
 
@@ -25,6 +31,14 @@ public class MainActivity extends AppCompatActivity {
         mRunBoyRun = true;
         if(!mReceiver.isConnected()){
             mReceiver.startListening();
+        }
+        int tries = 0;
+        while(!mReceiver.isConnected() && tries < 10){
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
         while(mRunBoyRun){
             if(mReceiver.isConnected()) {
@@ -44,7 +58,36 @@ public class MainActivity extends AppCompatActivity {
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
+            }else{
+                mRunBoyRun = false;
             }
+        }
+
+        mHostnameText.setVisibility(View.VISIBLE);
+        mConnectButton.setVisibility(View.VISIBLE);
+    }
+
+    private void connectClick(){
+        if(!mTryingConnect) {
+            mTryingConnect = true;
+            mReceiver.setHostname(mHostnameText.getText().toString(), 9009);
+            mDisplayThread = new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    displayThreadCallback();
+                }
+            });
+            mDisplayThread.start();
+            while(!mReceiver.isConnected()) {
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+            mHostnameText.setVisibility(View.GONE);
+            mConnectButton.setVisibility(View.GONE);
+            mTryingConnect = false;
         }
     }
 
@@ -55,13 +98,8 @@ public class MainActivity extends AppCompatActivity {
                 case LoaderCallbackInterface.SUCCESS:
                 {
                     Log.i("OPENCV", "OpenCV loaded successfully");
-                    mDisplayThread = new Thread(new Runnable() {
-                        @Override
-                        public void run() {
-                            displayThreadCallback();
-                        }
-                    });
-                    mDisplayThread.start();
+                    mHostnameText.setVisibility(View.VISIBLE);
+                    mConnectButton.setVisibility(View.VISIBLE);
                 } break;
                 default:
                 {
@@ -76,8 +114,16 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
-        mReceiver = new ImageReceiver("192.168.1.43", 9009);
-        mDisplayer = (ImageView) findViewById(R.id.displayer);
+        mReceiver = new ImageReceiver();
+        mDisplayer = findViewById(R.id.displayer);
+        mConnectButton = findViewById(R.id.connectButton);
+        mHostnameText = findViewById(R.id.hostnameView);
+        mConnectButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                connectClick();
+            }
+        });
     }
 
     @Override

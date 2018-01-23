@@ -7,12 +7,46 @@
     android:layout_height="match_parent"
     tools:context="bardo91.es.us.grvc.araeroarms.MainActivity">
 
-    <ImageView
-        android:id="@+id/displayer"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:scaleType="fitXY"
-        app:srcCompat="@drawable/ic_launcher_foreground"
-        tools:layout_editor_absoluteX="99dp"
-        tools:layout_editor_absoluteY="3dp" />
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:visibility="visible">
+
+            <EditText
+                android:id="@+id/hostnameView"
+                android:layout_width="481dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:ems="10"
+                android:inputType="textPersonName"
+                android:text="Hostname"
+                android:visibility="gone" />
+
+            <Button
+                android:id="@+id/connectButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Connect"
+                android:visibility="gone" />
+        </LinearLayout>
+
+        <ImageView
+            android:id="@+id/displayer"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:contentDescription="Container for streamed images"
+            android:scaleType="fitXY"
+            android:visibility="visible"
+            app:srcCompat="@drawable/ic_launcher_foreground"
+            tools:layout_editor_absoluteX="99dp"
+            tools:layout_editor_absoluteY="3dp" />
+    </LinearLayout>
+
 </android.support.constraint.ConstraintLayout>

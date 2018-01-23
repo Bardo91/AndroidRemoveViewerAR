@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.Socket;
 import java.net.SocketException;
+import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.io.BufferedWriter;
 import java.io.OutputStreamWriter;
@@ -34,7 +35,7 @@ class ImageReceiver{
 
     private ReentrantLock mSecureLock = new ReentrantLock();
 
-    public ImageReceiver(String _ip, int _port){
+    public void setHostname(String _ip, int _port){
         mSocketIp = _ip;
         mSocketPort= _port;
     }
@@ -57,11 +58,16 @@ class ImageReceiver{
                 new Runnable() {
                     public void run() {
                         Socket socket = null;
-
+                        int tries = 0;
                         while (mListening & socket == null) {
+                            tries++;
+                            if (tries > 10){
+                                return;
+                            }
                             // Try starting the socket
                             try {
                                 socket = new Socket(mSocketIp, mSocketPort);
+                                socket.setSoTimeout(5000);
                                 mIsConnected = true;
                             } catch (SocketException e) {
                                 e.printStackTrace();
@@ -138,8 +144,13 @@ class ImageReceiver{
                                         mSecureLock.unlock();
                                     }
 
+                                } catch (SocketTimeoutException e){
+                                    mListening = false;
+                                    mIsConnected = false;
                                 } catch (IOException e) {
                                     e.printStackTrace();
+                                    mListening = false;
+                                    mIsConnected = false;
                                 }
                             }
                         }
